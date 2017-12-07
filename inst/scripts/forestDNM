@@ -1,0 +1,176 @@
+#!/usr/bin/Rscript --vanilla --slave
+
+### A R G U M E N T S ###
+## --file= # path to the VCF with the family genotypes
+## --desc= # a descriptor string to be included in the name of output files
+## --sex= # sex of the offspring
+## --genome= # the build of the human genome: hg18|hg19; default is hg18
+## --pat-col= # the paternal column in the VCF; default is 1
+## --mat-col= # the maternal column in the VCF; default is 2
+## --child-col= # the child column in the VCF; default is 3
+## --chr-conv= # the convention for chromosome naming; default is 'chr',
+	## use '--chr-conv=NA' to prevent pre-pending 
+	## anything to chromosome number
+## --cutoff= # the classifier threshold
+## --save-features # save the features 'X' as an Rdata file
+
+### get args
+args = commandArgs(trailingOnly=T)
+
+######################################################################
+### print help
+######################################################################
+if("--help"%in%args | length(args)==0){
+ cat("\n \n")
+ cat(">>> forestDNM: de novo SNV discovery with Random Forests <<< \n \n")
+ sapply(strwrap("This is a command-line executable that automates the discovery of de novo SNV mutations (DNMs) from family genotype data (provided in a VCF). All you need to get started is a VCF."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n It works by using a classifier that has been trained to discriminate putative DNMs that were experimentally validated from putative DNMs that were invalidated, using combinations of quality metrics and other features constructed from a typical VCF produced by GATK.  The result is a tool that can distill the few true DNMs from tens of thousands of candidates, with high sensitivity and specificity."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n For forestDNM to work, you must provide a single VCF containing genotype information for at least a mother, father, and one child (if the file contains more family members, these must be run separately as forestDNM only works on one offspring at a time).  Further, the VCF must have been produced by GATK v2+ and have undergone VQSR.  The VCF must have been sorted, compressed with bgzip, and indexed with tabix.  The path to the VCF and the sex of the offspring must be specified using the --file and --sex arguments, respectively. Also, a character string descriptor must be specified (via --desc) which will be incorporated into the name of any output files.  The reference genome (hg18 or hg19) must be specified with the --genome argument. forestDNM assumes the ordering of the family members to be father, then mother, then child.  If this is not the case, these column numbers must be specified via the --pat-col, --mat-col, and --child-col arguments.  The chromosome naming convention must be specified if 'chr' is not prepended to chromosome names in the VCF (e.g. if chromosome 1 is '1' rather than 'chr1', --chr-conv=NA should be specified).  If you wish to change the default classifier threshold, do so using the '--cutoff' argument. If the features are to be saved, add the --save-features flag."),cat,sep="\n") -> null
+
+ cat("\n \n >>> ARGUMENTS <<<")
+ sapply(strwrap("\n \n '--file=': the path to the VCF"),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--desc=': a descriptor for the results; this will be incorporated into the name(s) of output file(s)"),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--sex=': the sex of the offspring"),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--genome=': the reference genome associated with the VCF"),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--pat-col=': the column number/order that indicates the father's genotype information relative to other family members.  Default is 1."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--mat-col=': the column number/order that indicates the mother's genotype information relative to other family members.  Default is 2."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--child-col=': the column number/order that indicates the offspring's genotype information relative to other family members.  Default is 3."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--chr-conv=': the convention for chromosome naming; default is 'chr', use '--chr-conv=NA' to prevent pre-pending anything to chromosome number"),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--cutoff=': a real value in [0,1] indicating the threshold the classifier should use when predicting DNMs.  Default is 0.6, which in an independent test set showed 99% sensitivity with ~ 10% FDR. This value may be tuned to be more liberal or conservative depending on your needs. "),cat,sep="\n") -> null
+ sapply(strwrap("\n \n '--save-features': will save the features used by the classifier for prediction (as an object in an R workspace file)"),cat,sep="\n") -> null
+
+ cat("\n \n >>> OUTPUT <<<")
+ sapply(strwrap("\n \n A tab-delimited text file is produced indicating which sites were predicted to be true DNMs, based on the value provided to '--cutoff'.  The file contains the chromosome and position, as well as the parental allele (for which both parents have a homozygous genotype) and the mutant allele (the child is heterozygous: 1 parental allele and 1 mutant allele).  The classifier score is also provided in the 'prd' column, with higher scores indicating higher confidence."),cat,sep="\n") -> null
+ sapply(strwrap("\n \n If the '--save-features' flag was given, the features that the classifier uses to make predictions will be written as an R object to an R workspace file in the current working directory."),cat,sep="\n") -> null
+
+ cat("\n \n >>> EXAMPLES <<<")
+cat("\n \n ### typical execution: \n forestDNM --file=myvcf.vcf.gz --sex=F --desc=S123 --genome=hg18")
+cat("\n \n ### family members in non-default order: \n forestDNM --file=myvcf.vcf.gz --sex=F --desc=S123 --genome=hg18 --pat-col=2 --mat-col=3 --child-col=1")
+cat("\n \n ### save features: \n forestDNM --file=myvcf.vcf.gz --sex=F --desc=S123 --genome=hg18 --save-features")
+ cat("\n \n")
+
+}else{
+
+ cat("\n\n>>> forestDNM <<<\n\n")
+ time.st = proc.time()[3]
+
+ cat("loading dependencies...")
+ suppressMessages(require(forestDNM,quietly=TRUE))
+ suppressMessages(require(VariantAnnotation,quietly=TRUE))
+ cat("done","\n")
+#############################################################################
+### get and parse arguments
+#############################################################################
+
+
+ if("--save-features"%in%args) saveFeat=T else saveFeat=F
+ args = args[!args%in%"--save-features"]
+
+ args = strsplit(args,split="=",fixed=T)
+ args = try(structure(sapply(args,'[[',2),names=sapply(args,'[[',1)))
+ if(class(args)=="try-error") stop("You passed one or more unrecognized arguments to forestDNM; take a look at 'forestDNM --help'")
+ 
+ ## required arguments
+ f = args[["--file"]]
+ names(f) = NULL
+ desc = args[["--desc"]]
+ names(desc) = NULL
+ sex = args[["--sex"]]
+ names(sex) = NULL
+ genome = args[["--genome"]]
+ names(genome) = NULL
+ 
+ ## optional arguments
+ if("--pat-col"%in%names(args)){
+  pat.col = as.integer(args[["--pat-col"]])
+ }else{
+  pat.col = 1
+ }
+
+ if("--mat-col"%in%names(args)){
+  mat.col = as.integer(args[["--mat-col"]])
+ }else{
+  mat.col = 2
+ }
+
+ if("--child-col"%in%names(args)){
+  child.col = as.integer(args[["--child-col"]])
+ }else{
+  child.col = 3
+ }
+
+ if("--chr-conv"%in%names(args)){
+  chr.conv = args[["--chr-conv"]]
+  if(is.na(chr.conv)|chr.conv=="NA") chr.conv = ""
+ }else{
+  chr.conv = "chr"
+ }
+
+ if("--cutoff"%in%names(args)){
+  cutoff = as.numeric(args[["--cutoff"]])
+ }else{
+  cutoff = 0.6
+ }
+
+ cat(paste("| VCF:",f),"\n")
+ cat(paste("| Descriptor:",desc),"\n")
+ cat(paste("| Offspring gender:",sex),"\n")
+ cat(paste("| Reference genome:",genome),"\n")
+ cat(paste("| Father in column:",pat.col),"\n")
+ cat(paste("| Mother in column:",mat.col),"\n")
+ cat(paste("| Child in column:",child.col),"\n")
+ cat(paste("| Chromosome naming convention:",chr.conv),"\n")
+ cat(paste("| Classifier threshold:",cutoff),"\n")
+ if(saveFeat) cat(paste("| forestDNM will save features to",
+	paste(desc,"_features.Rdata",sep="")),"\n")
+
+########################################################################
+### construct features from the specified VCF
+########################################################################
+ cat("beginning construction of features from VCF","\n")
+ #browser()
+ X = dnmFeat(f,sex,pat.col,mat.col,child.col,genome,chr.conv)
+
+ if(saveFeat){
+  save(X,file=paste(desc,"_features.Rdata",sep=""))
+ }
+
+########################################################################
+### make predictions
+########################################################################
+ cat(paste("loading classifier and making predictions on",nrow(X),"sites"),"\n")
+
+ ## load classifier
+ load(system.file("classifier/forestDNM_classifier.Rdata",package="forestDNM"))
+
+ ## check for missing data and remove
+ ind = sapply(X,function(x) is.na(x))
+ ind = !rowSums(ind)>0
+ X = X[ind,]
+ if(any(!ind)) cat(paste("removed",sum(!ind),"sites with missing data"),"\n")
+
+ ## make predictions
+ out = predDNM(X,rf,cutoff)
+ cat(paste("discovered",nrow(out),"putative de novo SNVs at a threshold of",cutoff),"\n")
+
+
+########################################################################
+### write output
+########################################################################
+ write.table(out,file=paste(desc,"_DNMs.txt",sep=""),
+	sep="\t",row.names=F,quote=F)
+ cat(paste("wrote DNMs to",paste(desc,"_DNMs.txt",sep="")),"\n")
+ elapsed = round((proc.time()[3]-time.st)/60,0)
+ cat(paste("forestDNM completed successfully in",elapsed,"minutes"),"\n")
+
+
+}
+
+
+
+
+
+
+
+
+

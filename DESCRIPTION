@@ -1,0 +1,14 @@
+Package: forestDNM
+Type: Package
+Title: Predicts de novo SNVs when provided a VCF containing variants of
+        a genotyped family.
+Version: 0.2
+Date: 2013-05-24
+Author: Jacob J. Michaelson
+Maintainer: Jake Michaelson <jake.michaelson@gmail.com>
+Description: forestDNM is an R package built around a classifier that was trained to predict true de novo germline mutations (DNMs), using features derived from family genotype data contained in a VCF.  The classifier was trained on 10 families with monozygotic twins, whose putative DNMs had undergone extensive experimental validation (the classifier was trained to predict validation status).  In an independent test set of held-out data from the 10 families, sensitivity was > 95% while maintaining an FDR < 10%.  The balance between sensitivity and FDR can be tuned by adjusting the threshold used on the classifier score (RF vote proportion).  The default cutoff is 0.2, and plots showing how FDR and sensitivity vary with classifier score are included in the vignette.  SNVs in this training/test set were genotyped using GATK 2.1-13 (unified genotyper and VQSR). 
+License: MIT
+Depends: VariantAnnotation, randomForest
+LazyLoad: yes
+LazyData: yes
+Packaged: 2013-05-30 19:05:44 UTC; jacob

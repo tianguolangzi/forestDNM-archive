@@ -1,0 +1,2 @@
+0.1 - initial limited release
+0.2 - dropped "SB" as a feature since this has been removed from more recent versions of GATK (why?!?); adapted code to remove sites with "./." genotypes; updated pDNM_X_male so that son's chrX genotype is compared with mother's only (as opposed to requiring that parents both be homozygous); added features based on normalized coverage; added FILTER as a feature; retrained classifier and updated default cutoff (now 0.6)
