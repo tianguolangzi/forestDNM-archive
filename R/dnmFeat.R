@@ -1,6 +1,6 @@
 dnmFeat <-
 function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
-	genome="hg18",chrom.conv="chr"){
+  genome="hg18",chrom.conv="chr"){
  require(VariantAnnotation,quietly=TRUE)
  if(missing(child.sex) || !child.sex%in%c("M","F")) stop("offspring's sex must be specified (M or F)")
 
@@ -15,12 +15,12 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
  X = list()
 
  for(i in 1:length(chr)){
-  rg = GRanges(IRanges(start=1,end=3e8),space=chr[i])
+  rg = GRanges(seqnames=chr[i],IRanges(start=1,end=3e8))
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
-	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
-		"HaplotypeScore","MQ","MQRankSum",
-		"QD","ReadPosRankSum","AN"))
+  info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
+    "HaplotypeScore","MQ","MQRankSum",
+    "QD","ReadPosRankSum","AN"))
   ### read in file
   vcf = readVcf(filename,genome,param)
   X[[i]] = pDNM(vcf,pat.col,mat.col,child.col)
@@ -29,17 +29,17 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   tot.est = elapsed/prop.done[i]
   remaining = round(tot.est-elapsed,0)
   cat(paste("estimated completion in",round(remaining/60,1),"minutes [",
-	format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
+  format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
  }
 
  ### do the sex chromosomes
  if(child.sex=="M"){
-  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
+  rg = GRanges(seqnames=paste(chrom.conv,"X",sep=""),IRanges(start=1,end=3e8))
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
-	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
-		"HaplotypeScore","MQ","MQRankSum",
-		"QD","ReadPosRankSum","AN"))
+  info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
+    "HaplotypeScore","MQ","MQRankSum",
+    "QD","ReadPosRankSum","AN"))
   ### read in file
   vcf = readVcf(filename,genome,param)
   X[[23]] = pDNM_X_male(vcf,mat.col,child.col)
@@ -48,15 +48,15 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   tot.est = elapsed/prop.done[23]
   remaining = round(tot.est-elapsed,0)
   cat(paste("estimated completion in",round(remaining/60,1),"minutes [",
-	format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
+  format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
 
-  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"Y",sep=""))
+  rg = GRanges(seqnames=paste(chrom.conv,"Y",sep=""),IRanges(start=1,end=3e8),)
   ### set params
   cat("working on Y chromosome...")
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
-	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
-		"HaplotypeScore","MQ","MQRankSum",
-		"QD","ReadPosRankSum","AN"))
+  info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
+    "HaplotypeScore","MQ","MQRankSum",
+    "QD","ReadPosRankSum","AN"))
   ### read in file
   vcf = readVcf(filename,genome,param)
   X[[24]] = pDNM_Y(vcf,pat.col,child.col)
@@ -66,12 +66,12 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   ##########################
   X = do.call("rbind",X)
  }else{
-  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
+  rg = GRanges(seqnames=paste(chrom.conv,"X",sep=""),IRanges(start=1,end=3e8))
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
-	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
-		"HaplotypeScore","MQ","MQRankSum",
-		"QD","ReadPosRankSum","AN"))
+  info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
+    "HaplotypeScore","MQ","MQRankSum",
+    "QD","ReadPosRankSum","AN"))
   ### read in file
   vcf = readVcf(filename,genome,param)
   X[[23]] = pDNM_X_female(vcf,pat.col,mat.col,child.col)
@@ -81,7 +81,7 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   tot.est = elapsed/prop.done[23]
   remaining = round(tot.est-elapsed,0)
   cat(paste("estimated completion in",round(remaining/60,1),"minutes [",
-	format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
+  format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
 
  }
  ## remove duplicates (if any)
