@@ -15,7 +15,7 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
  X = list()
 
  for(i in 1:length(chr)){
-  rg = RangedData(IRanges(start=1,end=3e8),space=chr[i])
+  rg = GRanges(IRanges(start=1,end=3e8),space=chr[i])
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
 	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
@@ -34,7 +34,7 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
 
  ### do the sex chromosomes
  if(child.sex=="M"){
-  rg = RangedData(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
+  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
 	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
@@ -50,7 +50,7 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   cat(paste("estimated completion in",round(remaining/60,1),"minutes [",
 	format(Sys.time()+remaining, "%a %b %d %X"),"] \n"))
 
-  rg = RangedData(IRanges(start=1,end=3e8),space=paste(chrom.conv,"Y",sep=""))
+  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"Y",sep=""))
   ### set params
   cat("working on Y chromosome...")
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
@@ -66,7 +66,7 @@ function(filename,child.sex,pat.col=1,mat.col=2,child.col=3,
   ##########################
   X = do.call("rbind",X)
  }else{
-  rg = RangedData(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
+  rg = GRanges(IRanges(start=1,end=3e8),space=paste(chrom.conv,"X",sep=""))
   ### set params
   param <- ScanVcfParam(which=rg,geno=c("AD","DP","GQ","GT","PL"),
 	info = c("VQSLOD","DB","BaseQRankSum","Dels","FS",
